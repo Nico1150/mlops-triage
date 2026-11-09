@@ -70,18 +70,27 @@ Cron / launchd: ver [`scripts/cron.example`](scripts/cron.example) y el wrapper 
 ```bash
 export PROMETHEUS_BASE_URL=http://localhost:9090
 export PROMETHEUS_SERVICES=rec-engine,serving-prod-eu
+# default: PROMETHEUS_SLO_QUERY_MODE=histogram
 mlops-triage-sync --adapter prometheus
 ```
 
-Series esperadas en Prometheus (nombres editables vía env, ver `.env.example`):
+**SLO — modo `histogram` (default):** PromQL sobre series típicas de serving:
 
-| Métrica | Labels | Valor |
-|---------|--------|--------|
-| `mlops_deployment_traffic_pct` | `service`, `version`, `channel`, `deployed_at`, `status` | % tráfico |
-| `mlops_slo_latency_p99_ms` | `service` | latencia p99 (ms) |
-| `mlops_slo_error_rate_503_pct` | `service` | tasa 503 (%) |
+- Latencia p99: `histogram_quantile` + `rate(http_request_duration_seconds_bucket{service=…}[window])`
+- Errores 503: ratio de `http_requests_total` con `status="503"`
 
-El breach se calcula contra `PROMETHEUS_LATENCY_BASELINE_MS` / `PROMETHEUS_ERROR_BASELINE_PCT` (defaults alineados al demo).
+Ventana: `PROMETHEUS_SLO_WINDOW_MINUTES` (default 15). Nombres de métrica/labels configurables en `.env.example`. Ejemplos en [`data/prometheus_histogram_queries.example.promql`](data/prometheus_histogram_queries.example.promql).
+
+**SLO — modo `gauges`:** métricas demo `mlops_slo_latency_p99_ms` / `mlops_slo_error_rate_503_pct` (ver [`data/prometheus_metrics.example.txt`](data/prometheus_metrics.example.txt)).
+
+| Modo | Env |
+|------|-----|
+| histogram | `PROMETHEUS_SLO_QUERY_MODE=histogram` (default) |
+| gauges | `PROMETHEUS_SLO_QUERY_MODE=gauges` |
+
+Deploys: sigue usando `mlops_deployment_traffic_pct` (o `PROMETHEUS_DEPLOYMENT_PROMQL`).
+
+Breach: `PROMETHEUS_LATENCY_BASELINE_MS` / `PROMETHEUS_ERROR_BASELINE_PCT`.
 
 ### RAG runbooks (integrado)
 
@@ -191,4 +200,4 @@ examples/
 ## Siguientes fases (previstas)
 
 - CI (unit en PR, integration opcional)
-- Queries PromQL reales (histogramas) en lugar de gauges `mlops_*` de demo
+- Deployments desde métricas CD/Kubernetes (además de `mlops_deployment_traffic_pct`)

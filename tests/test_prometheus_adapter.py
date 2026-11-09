@@ -73,7 +73,7 @@ def test_prometheus_adapter_builds_catalog_and_slo():
         raise AssertionError(f"unexpected promql: {promql}")
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    settings = Settings(prometheus_services="rec-engine")
+    settings = Settings(prometheus_services="rec-engine", prometheus_slo_query_mode="gauges")
     adapter = PrometheusAdapter(settings, client=client)
 
     deployments = adapter.pull_deployments()
@@ -106,12 +106,39 @@ def test_refresh_snapshots_prometheus_adapter(tmp_path):
         deployments_file=tmp_path / "deployments.json",
         slo_snapshot_file=tmp_path / "slo.json",
         prometheus_services="serving-prod-eu",
+        prometheus_slo_query_mode="gauges",
     )
     adapter = PrometheusAdapter(settings, client=httpx.Client(transport=httpx.MockTransport(handler)))
     refresh_snapshots(settings=settings, adapter="prometheus", adapter_instance=adapter)
 
     slo = json.loads((tmp_path / "slo.json").read_text(encoding="utf-8"))
     assert slo["serving-prod-eu"]["latency_p99"]["slo_breached"] is False
+
+
+def test_prometheus_adapter_histogram_mode():
+    captured: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        promql = request.url.params.get("query", "")
+        captured.append(promql)
+        if "histogram_quantile" in promql:
+            return httpx.Response(200, json=_prom_response([{"metric": {}, "value": 2.5}]))
+        if "clamp_min" in promql:
+            return httpx.Response(200, json=_prom_response([{"metric": {}, "value": 0.05}]))
+        return httpx.Response(200, json={"status": "success", "data": {"result": []}})
+
+    settings = Settings(
+        prometheus_services="serving-prod-eu",
+        prometheus_slo_query_mode="histogram",
+        prometheus_slo_window_minutes=15,
+    )
+    adapter = PrometheusAdapter(settings, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    slo = adapter.pull_slo_snapshot()
+
+    assert any("histogram_quantile" in q for q in captured)
+    assert slo["serving-prod-eu"]["latency_p99"]["current_ms"] == 2.5
+    assert slo["serving-prod-eu"]["latency_p99"]["slo_breached"] is False
+    assert slo["serving-prod-eu"]["error_rate_503"]["slo_breached"] is False
 
 
 def test_query_instant_raises_on_http_error():

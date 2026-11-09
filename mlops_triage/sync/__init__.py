@@ -1,3 +1,3 @@
-from mlops_triage.sync.refresh import SyncResult, refresh_snapshots
+"""Refresh deployment / SLO JSON snapshots for agent tools."""
 
 __all__ = ["SyncResult", "refresh_snapshots"]

@@ -1,8 +1,16 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from mlops_triage.sync.prometheus_queries import (
+    PrometheusSloQueryMode,
+    default_gauge_error_promql,
+    default_gauge_latency_promql,
+    histogram_error_rate_503_promql,
+    histogram_latency_p99_promql,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -45,11 +53,62 @@ class Settings(BaseSettings):
     prometheus_latency_baseline_ms: float = 120.0
     prometheus_error_baseline_pct: float = 0.1
     prometheus_deployment_promql: str = "mlops_deployment_traffic_pct"
-    prometheus_latency_promql: str = 'mlops_slo_latency_p99_ms{{service="{service}"}}'
-    prometheus_error_promql: str = 'mlops_slo_error_rate_503_pct{{service="{service}"}}'
+    prometheus_slo_query_mode: PrometheusSloQueryMode = "histogram"
+    prometheus_latency_promql: str = ""
+    prometheus_error_promql: str = ""
+    prometheus_service_label: str = "service"
+    prometheus_histogram_duration_metric: str = "http_request_duration_seconds_bucket"
+    prometheus_histogram_requests_metric: str = "http_requests_total"
+    prometheus_error_status_label: str = "status"
+    prometheus_error_status_value: str = "503"
+    prometheus_latency_quantile: float = 0.99
+
+    @field_validator("prometheus_slo_query_mode", mode="before")
+    @classmethod
+    def _normalize_slo_query_mode(cls, value: object) -> str:
+        raw = str(value or "histogram").strip().lower()
+        if raw not in ("gauges", "histogram"):
+            raise ValueError("prometheus_slo_query_mode must be 'gauges' or 'histogram'")
+        return raw
 
     def prometheus_service_list(self) -> list[str]:
         return [s.strip() for s in self.prometheus_services.split(",") if s.strip()]
+
+    def _format_custom_promql(self, template: str, service: str) -> str:
+        return template.format(
+            service=service,
+            window_minutes=self.prometheus_slo_window_minutes,
+            window=f"{self.prometheus_slo_window_minutes}m",
+        )
+
+    def slo_latency_query(self, service: str) -> str:
+        custom = self.prometheus_latency_promql.strip()
+        if custom:
+            return self._format_custom_promql(custom, service)
+        if self.prometheus_slo_query_mode == "histogram":
+            return histogram_latency_p99_promql(
+                service=service,
+                window_minutes=self.prometheus_slo_window_minutes,
+                duration_metric=self.prometheus_histogram_duration_metric,
+                service_label=self.prometheus_service_label,
+                quantile=self.prometheus_latency_quantile,
+            )
+        return default_gauge_latency_promql(service)
+
+    def slo_error_query(self, service: str) -> str:
+        custom = self.prometheus_error_promql.strip()
+        if custom:
+            return self._format_custom_promql(custom, service)
+        if self.prometheus_slo_query_mode == "histogram":
+            return histogram_error_rate_503_promql(
+                service=service,
+                window_minutes=self.prometheus_slo_window_minutes,
+                requests_metric=self.prometheus_histogram_requests_metric,
+                service_label=self.prometheus_service_label,
+                status_label=self.prometheus_error_status_label,
+                status_value=self.prometheus_error_status_value,
+            )
+        return default_gauge_error_promql(service)
 
 
 @lru_cache

@@ -14,10 +14,8 @@ class PrometheusAdapter(SnapshotAdapter):
     """
     Pulls tool snapshots from Prometheus instant queries.
 
-    Expected series (see README):
-    - mlops_deployment_traffic_pct{service, version, channel, ...}
-    - mlops_slo_latency_p99_ms{service}
-    - mlops_slo_error_rate_503_pct{service}
+    Deployments: mlops_deployment_traffic_pct (or custom PromQL).
+    SLO: gauges (mlops_slo_*) or histogram (histogram_quantile + rate); see Settings.
     """
 
     def __init__(
@@ -68,8 +66,8 @@ class PrometheusAdapter(SnapshotAdapter):
         error_base = self._settings.prometheus_error_baseline_pct
 
         for service in self._settings.prometheus_service_list():
-            latency_q = self._settings.prometheus_latency_promql.format(service=service)
-            error_q = self._settings.prometheus_error_promql.format(service=service)
+            latency_q = self._settings.slo_latency_query(service)
+            error_q = self._settings.slo_error_query(service)
 
             try:
                 lat_rows = query_instant(

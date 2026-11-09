@@ -1,0 +1,13 @@
+# Example instant queries for PROMETHEUS_SLO_QUERY_MODE=histogram
+# (Defaults match Settings; override with PROMETHEUS_LATENCY_PROMQL / PROMETHEUS_ERROR_PROMQL.)
+
+# Latency p99 (ms) for rec-engine, 15m window:
+histogram_quantile(
+  0.99,
+  sum(rate(http_request_duration_seconds_bucket{service="rec-engine"}[15m])) by (le)
+) * 1000
+
+# 503 error rate (%) for serving-prod-eu:
+100 *
+sum(rate(http_requests_total{service="serving-prod-eu",status="503"}[15m]))
+/ clamp_min(sum(rate(http_requests_total{service="serving-prod-eu"}[15m])), 1e-9)
