@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 
 from mlops_triage.agent import AgentError
+from mlops_triage.api import health as health_checks
 from mlops_triage.api.schemas import TriageRequest, TriageResponse, pipeline_result_to_response
 from mlops_triage.config import get_settings
 from mlops_triage.llm.structured import StructuredOutputError
@@ -14,14 +16,20 @@ app = FastAPI(
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(deep: bool = False):
     settings = get_settings()
-    return {
-        "status": "ok",
-        "llm_model": settings.llm_model,
-        "llm_base_url": settings.llm_base_url,
-        "embedding_model": settings.embedding_model,
-    }
+    if not deep:
+        return health_checks.shallow_health_payload(settings)
+    payload = health_checks.deep_health_payload(settings)
+    return JSONResponse(payload, status_code=health_checks.deep_health_http_status(payload))
+
+
+@app.get("/ready")
+def ready():
+    """Readiness: deep checks; 503 when LLM or required snapshots are missing."""
+    settings = get_settings()
+    payload = health_checks.deep_health_payload(settings)
+    return JSONResponse(payload, status_code=health_checks.deep_health_http_status(payload))
 
 
 @app.post("/triage", response_model=TriageResponse)

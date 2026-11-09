@@ -165,6 +165,8 @@ uvicorn mlops_triage.api.app:app --reload --host 127.0.0.1 --port 8000
 
 ```bash
 curl -s http://127.0.0.1:8000/health | jq
+curl -s "http://127.0.0.1:8000/health?deep=1" | jq   # LLM + snapshots + RAG index
+curl -s http://127.0.0.1:8000/ready | jq             # mismo deep check; 503 si unhealthy
 
 curl -s http://127.0.0.1:8000/triage \
   -H 'Content-Type: application/json' \
@@ -230,4 +232,4 @@ examples/
 
 ## Siguientes fases (previstas)
 
-- `/health` profundo + edad de snapshots
+- `docker compose` + límites de tamaño en `POST /triage`
