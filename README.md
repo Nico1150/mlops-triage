@@ -65,7 +65,23 @@ Variables opcionales:
 
 Cron / launchd: ver [`scripts/cron.example`](scripts/cron.example) y el wrapper [`scripts/sync_snapshots.sh`](scripts/sync_snapshots.sh).
 
-Próximo adapter previsto: `prometheus` (HTTP) antes de reemplazar el stub en producción.
+**Adapter Prometheus** (métricas → mismos JSON):
+
+```bash
+export PROMETHEUS_BASE_URL=http://localhost:9090
+export PROMETHEUS_SERVICES=rec-engine,serving-prod-eu
+mlops-triage-sync --adapter prometheus
+```
+
+Series esperadas en Prometheus (nombres editables vía env, ver `.env.example`):
+
+| Métrica | Labels | Valor |
+|---------|--------|--------|
+| `mlops_deployment_traffic_pct` | `service`, `version`, `channel`, `deployed_at`, `status` | % tráfico |
+| `mlops_slo_latency_p99_ms` | `service` | latencia p99 (ms) |
+| `mlops_slo_error_rate_503_pct` | `service` | tasa 503 (%) |
+
+El breach se calcula contra `PROMETHEUS_LATENCY_BASELINE_MS` / `PROMETHEUS_ERROR_BASELINE_PCT` (defaults alineados al demo).
 
 ### RAG runbooks (integrado)
 
@@ -174,5 +190,5 @@ examples/
 
 ## Siguientes fases (previstas)
 
-- Adapter `prometheus` para `mlops-triage-sync`
 - CI (unit en PR, integration opcional)
+- Queries PromQL reales (histogramas) en lugar de gauges `mlops_*` de demo

@@ -27,7 +27,7 @@ def test_stub_adapter_healthy_shapes():
 
 def test_get_adapter_unknown_raises():
     with pytest.raises(ValueError, match="Unknown sync adapter"):
-        get_adapter("prometheus")
+        get_adapter("nope")
 
 
 def test_refresh_snapshots_writes_files(tmp_path, monkeypatch):

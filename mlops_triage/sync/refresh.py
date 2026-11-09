@@ -39,7 +39,7 @@ def refresh_snapshots(
 ) -> SyncResult:
     """Pull deployment catalog + SLO snapshot from an adapter and write JSON files."""
     cfg = settings or get_settings()
-    puller = adapter_instance or get_adapter(adapter)
+    puller = adapter_instance or get_adapter(adapter, settings=cfg)
     synced_at = datetime.now(UTC).isoformat()
 
     deployments = puller.pull_deployments()

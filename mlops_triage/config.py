@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     rag_index_file: Path = Field(default_factory=_default_rag_index_file)
     embedding_model: str = "nomic-embed-text"
 
+    prometheus_base_url: str = "http://localhost:9090"
+    prometheus_services: str = "rec-engine,serving-prod-eu"
+    prometheus_slo_window_minutes: int = 15
+    prometheus_latency_baseline_ms: float = 120.0
+    prometheus_error_baseline_pct: float = 0.1
+    prometheus_deployment_promql: str = "mlops_deployment_traffic_pct"
+    prometheus_latency_promql: str = 'mlops_slo_latency_p99_ms{{service="{service}"}}'
+    prometheus_error_promql: str = 'mlops_slo_error_rate_503_pct{{service="{service}"}}'
+
+    def prometheus_service_list(self) -> list[str]:
+        return [s.strip() for s in self.prometheus_services.split(",") if s.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:

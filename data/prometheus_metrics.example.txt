@@ -1,0 +1,9 @@
+# Example gauges for mlops-triage-sync --adapter prometheus
+# Expose via Pushgateway, recording rules, or a small exporter in prod.
+
+mlops_deployment_traffic_pct{service="rec-engine",version="3.8.1",channel="canary",deployed_at="2026-03-09T12:00:00Z",status="active"} 12
+mlops_deployment_traffic_pct{service="rec-engine",version="3.8.0",channel="stable",deployed_at="previous",status="active"} 88
+mlops_slo_latency_p99_ms{service="rec-engine"} 4200
+mlops_slo_error_rate_503_pct{service="rec-engine"} 8.7
+mlops_slo_latency_p99_ms{service="serving-prod-eu"} 4200
+mlops_slo_error_rate_503_pct{service="serving-prod-eu"} 8.7

@@ -3,7 +3,10 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from mlops_triage.config import Settings
 
 SyncScenario = Literal["incident", "healthy"]
 
@@ -86,8 +89,14 @@ class StubAdapter(SnapshotAdapter):
         }
 
 
-def get_adapter(name: str) -> SnapshotAdapter:
+def get_adapter(name: str, *, settings: Settings | None = None) -> SnapshotAdapter:
     normalized = name.strip().lower()
     if normalized == "stub":
         return StubAdapter()
-    raise ValueError(f"Unknown sync adapter {name!r}; supported: stub")
+    if normalized == "prometheus":
+        from mlops_triage.config import get_settings
+        from mlops_triage.sync.prometheus_adapter import PrometheusAdapter
+
+        cfg = settings or get_settings()
+        return PrometheusAdapter(cfg)
+    raise ValueError(f"Unknown sync adapter {name!r}; supported: stub, prometheus")
