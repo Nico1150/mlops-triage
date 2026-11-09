@@ -1,0 +1,11 @@
+# PROMETHEUS_DEPLOYMENT_QUERY_MODE=kube_replicas
+# PROMETHEUS_KUBE_NAMESPACE=production
+# PROMETHEUS_KUBE_DEPLOYMENT_REGEX_TEMPLATE={service}.*
+
+# Per service "rec-engine" (instant query):
+sum(kube_deployment_status_replicas_available{namespace="production", deployment=~"rec-engine.*"}) by (deployment)
+
+# PROMETHEUS_DEPLOYMENT_QUERY_MODE=request_traffic
+# PROMETHEUS_DEPLOYMENT_VERSION_LABEL=version   # Istio: destination_version
+
+sum(rate(http_requests_total{service="rec-engine"}[15m])) by (version)

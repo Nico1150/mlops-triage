@@ -115,6 +115,59 @@ def test_refresh_snapshots_prometheus_adapter(tmp_path):
     assert slo["serving-prod-eu"]["latency_p99"]["slo_breached"] is False
 
 
+def test_prometheus_adapter_request_traffic_deployments():
+    def handler(request: httpx.Request) -> httpx.Response:
+        promql = request.url.params.get("query", "")
+        if "sum(rate" in promql and 'service="rec-engine"' in promql:
+            return httpx.Response(
+                200,
+                json=_prom_response(
+                    [
+                        {"metric": {"version": "3.8.1"}, "value": 120},
+                        {"metric": {"version": "3.8.0"}, "value": 880},
+                    ]
+                ),
+            )
+        return httpx.Response(200, json={"status": "success", "data": {"result": []}})
+
+    settings = Settings(
+        prometheus_services="rec-engine",
+        prometheus_deployment_query_mode="request_traffic",
+        prometheus_slo_query_mode="gauges",
+        prometheus_latency_promql="mlops_slo_latency_p99_ms{service='{service}'}",
+        prometheus_error_promql="mlops_slo_error_rate_503_pct{service='{service}'}",
+    )
+    adapter = PrometheusAdapter(settings, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    catalog = adapter.pull_deployments()
+    assert catalog["rec-engine"][0]["traffic_pct"] == 88
+    assert catalog["rec-engine"][1]["version"] == "3.8.1"
+
+
+def test_prometheus_adapter_kube_replica_deployments():
+    def handler(request: httpx.Request) -> httpx.Response:
+        promql = request.url.params.get("query", "")
+        if "kube_deployment_status_replicas_available" in promql:
+            return httpx.Response(
+                200,
+                json=_prom_response(
+                    [
+                        {"metric": {"deployment": "rec-engine-v381"}, "value": 2},
+                        {"metric": {"deployment": "rec-engine-v380"}, "value": 8},
+                    ]
+                ),
+            )
+        return httpx.Response(200, json={"status": "success", "data": {"result": []}})
+
+    settings = Settings(
+        prometheus_services="rec-engine",
+        prometheus_deployment_query_mode="kube_replicas",
+        prometheus_kube_deployment_regex_template="rec-engine.*",
+    )
+    adapter = PrometheusAdapter(settings, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    catalog = adapter.pull_deployments()
+    assert catalog["rec-engine"][0]["traffic_pct"] == 80
+
+
 def test_prometheus_adapter_histogram_mode():
     captured: list[str] = []
 

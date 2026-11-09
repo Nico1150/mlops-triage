@@ -90,9 +90,23 @@ Ventana: `PROMETHEUS_SLO_WINDOW_MINUTES` (default 15). Nombres de métrica/label
 | histogram | `PROMETHEUS_SLO_QUERY_MODE=histogram` (default) |
 | gauges | `PROMETHEUS_SLO_QUERY_MODE=gauges` |
 
-Deploys: sigue usando `mlops_deployment_traffic_pct` (o `PROMETHEUS_DEPLOYMENT_PROMQL`).
+**Deployments — `PROMETHEUS_DEPLOYMENT_QUERY_MODE`:**
 
-Breach: `PROMETHEUS_LATENCY_BASELINE_MS` / `PROMETHEUS_ERROR_BASELINE_PCT`.
+| Modo | Fuente | Uso |
+|------|--------|-----|
+| `gauges` (default) | `mlops_deployment_traffic_pct` | Demo / exporter propio |
+| `request_traffic` | `sum(rate(http_requests_total…)) by (version)` | Mesh / pods con label de versión |
+| `kube_replicas` | `kube_deployment_status_replicas_available` | kube-state-metrics |
+
+Ejemplos PromQL: [`data/prometheus_kube_deployments.example.promql`](data/prometheus_kube_deployments.example.promql). Override total: `PROMETHEUS_DEPLOYMENT_PROMQL` con `{service}`, `{namespace}`, etc.
+
+```bash
+export PROMETHEUS_DEPLOYMENT_QUERY_MODE=request_traffic
+export PROMETHEUS_DEPLOYMENT_VERSION_LABEL=destination_version   # Istio
+mlops-triage-sync --adapter prometheus
+```
+
+Breach SLO: `PROMETHEUS_LATENCY_BASELINE_MS` / `PROMETHEUS_ERROR_BASELINE_PCT`.
 
 ### RAG runbooks (integrado)
 
@@ -203,4 +217,4 @@ examples/
 
 ## Siguientes fases (previstas)
 
-- Deployments desde métricas CD/Kubernetes (además de `mlops_deployment_traffic_pct`)
+- Eval golden (`incidents.jsonl`) con métricas de regresión

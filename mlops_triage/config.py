@@ -5,9 +5,13 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from mlops_triage.sync.prometheus_queries import (
+    PrometheusDeploymentQueryMode,
     PrometheusSloQueryMode,
+    default_gauge_deployment_promql,
     default_gauge_error_promql,
     default_gauge_latency_promql,
+    deployment_kube_replicas_by_name_promql,
+    deployment_request_traffic_by_label_promql,
     histogram_error_rate_by_label_promql,
     histogram_latency_quantile_promql,
 )
@@ -52,7 +56,15 @@ class Settings(BaseSettings):
     prometheus_slo_window_minutes: int = 15
     prometheus_latency_baseline_ms: float = 120.0
     prometheus_error_baseline_pct: float = 0.1
-    prometheus_deployment_promql: str = "mlops_deployment_traffic_pct"
+    prometheus_deployment_promql: str = ""
+    prometheus_deployment_query_mode: PrometheusDeploymentQueryMode = "gauges"
+    prometheus_deployment_requests_metric: str = "http_requests_total"
+    prometheus_deployment_version_label: str = "version"
+    prometheus_deployment_channel_label: str = ""
+    prometheus_kube_namespace: str = "default"
+    prometheus_kube_deployment_label: str = "deployment"
+    prometheus_kube_replicas_metric: str = "kube_deployment_status_replicas_available"
+    prometheus_kube_deployment_regex_template: str = "{service}.*"
     prometheus_slo_query_mode: PrometheusSloQueryMode = "histogram"
     prometheus_latency_promql: str = ""
     prometheus_error_promql: str = ""
@@ -69,6 +81,16 @@ class Settings(BaseSettings):
         raw = str(value or "histogram").strip().lower()
         if raw not in ("gauges", "histogram"):
             raise ValueError("prometheus_slo_query_mode must be 'gauges' or 'histogram'")
+        return raw
+
+    @field_validator("prometheus_deployment_query_mode", mode="before")
+    @classmethod
+    def _normalize_deployment_query_mode(cls, value: object) -> str:
+        raw = str(value or "gauges").strip().lower()
+        if raw not in ("gauges", "request_traffic", "kube_replicas"):
+            raise ValueError(
+                "prometheus_deployment_query_mode must be gauges, request_traffic, or kube_replicas"
+            )
         return raw
 
     def prometheus_service_list(self) -> list[str]:
@@ -112,6 +134,49 @@ class Settings(BaseSettings):
                 status_value=self.prometheus_error_status_value,
             )
         return default_gauge_error_promql(service)
+
+    def deployment_channel_label(self) -> str | None:
+        label = self.prometheus_deployment_channel_label.strip()
+        return label or None
+
+    def _format_deployment_promql(self, template: str, service: str) -> str:
+        return template.format(
+            service=service,
+            window_minutes=self.prometheus_slo_window_minutes,
+            window=f"{self.prometheus_slo_window_minutes}m",
+            namespace=self.prometheus_kube_namespace,
+            version_label=self.prometheus_deployment_version_label,
+        )
+
+    def kube_deployment_match_regex(self, service: str) -> str:
+        return self.prometheus_kube_deployment_regex_template.format(service=service)
+
+    def deployment_gauge_query(self) -> str:
+        custom = self.prometheus_deployment_promql.strip()
+        return custom or default_gauge_deployment_promql()
+
+    def deployment_request_traffic_query(self, service: str) -> str:
+        custom = self.prometheus_deployment_promql.strip()
+        if custom:
+            return self._format_deployment_promql(custom, service)
+        return deployment_request_traffic_by_label_promql(
+            service=service,
+            window_minutes=self.prometheus_slo_window_minutes,
+            requests_metric=self.prometheus_deployment_requests_metric,
+            service_label=self.prometheus_service_label,
+            group_by_label=self.prometheus_deployment_version_label,
+        )
+
+    def deployment_kube_replicas_query(self, service: str) -> str:
+        custom = self.prometheus_deployment_promql.strip()
+        if custom:
+            return self._format_deployment_promql(custom, service)
+        return deployment_kube_replicas_by_name_promql(
+            namespace=self.prometheus_kube_namespace,
+            deployment_match_regex=self.kube_deployment_match_regex(service),
+            replicas_metric=self.prometheus_kube_replicas_metric,
+            deployment_label=self.prometheus_kube_deployment_label,
+        )
 
 
 @lru_cache

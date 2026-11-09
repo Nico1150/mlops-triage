@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
 
 import httpx
 
 from mlops_triage.config import Settings, get_settings
 from mlops_triage.sync.adapters import SnapshotAdapter
+from mlops_triage.sync.deployment_catalog import (
+    catalog_from_gauge_rows,
+    catalog_from_kube_replica_rows,
+    catalog_from_request_traffic_rows,
+)
 from mlops_triage.sync.prometheus_client import PrometheusError, query_instant
 
 
@@ -14,7 +18,7 @@ class PrometheusAdapter(SnapshotAdapter):
     """
     Pulls tool snapshots from Prometheus instant queries.
 
-    Deployments: mlops_deployment_traffic_pct (or custom PromQL).
+    Deployments: gauges, request-traffic by version, or kube-state replica share.
     SLO: gauges (mlops_slo_*) or histogram (histogram_quantile + rate); see Settings.
     """
 
@@ -28,42 +32,60 @@ class PrometheusAdapter(SnapshotAdapter):
         self._client = client or httpx.Client(timeout=30.0)
 
     def pull_deployments(self) -> dict[str, list[dict[str, Any]]]:
-        promql = self._settings.prometheus_deployment_promql
+        mode = self._settings.prometheus_deployment_query_mode
+        channel_label = self._settings.deployment_channel_label()
+
         try:
-            rows = query_instant(
-                self._settings.prometheus_base_url,
-                promql,
-                client=self._client,
-            )
+            if mode == "gauges":
+                rows = query_instant(
+                    self._settings.prometheus_base_url,
+                    self._settings.deployment_gauge_query(),
+                    client=self._client,
+                )
+                return catalog_from_gauge_rows(rows)
+
+            catalog: dict[str, list[dict[str, Any]]] = {}
+            for service in self._settings.prometheus_service_list():
+                if mode == "request_traffic":
+                    promql = self._settings.deployment_request_traffic_query(service)
+                    rows = query_instant(
+                        self._settings.prometheus_base_url,
+                        promql,
+                        client=self._client,
+                    )
+                    entries = catalog_from_request_traffic_rows(
+                        rows,
+                        service=service,
+                        version_label=self._settings.prometheus_deployment_version_label,
+                        channel_label=channel_label,
+                    )
+                elif mode == "kube_replicas":
+                    promql = self._settings.deployment_kube_replicas_query(service)
+                    rows = query_instant(
+                        self._settings.prometheus_base_url,
+                        promql,
+                        client=self._client,
+                    )
+                    entries = catalog_from_kube_replica_rows(
+                        rows,
+                        service=service,
+                        deployment_label=self._settings.prometheus_kube_deployment_label,
+                        channel_label=channel_label,
+                    )
+                else:
+                    entries = []
+
+                if entries:
+                    catalog[service] = entries
+            return catalog
         except PrometheusError:
             return {}
 
-        catalog: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for row in rows:
-            labels = row["labels"]
-            service = labels.get("service")
-            if not service:
-                continue
-            traffic = row["value"]
-            catalog[service].append(
-                {
-                    "version": labels.get("version", "unknown"),
-                    "channel": labels.get("channel", "stable"),
-                    "traffic_pct": int(round(traffic)),
-                    "deployed_at_utc": labels.get("deployed_at", "prometheus"),
-                    "status": labels.get("status", "active"),
-                }
-            )
-
-        for service in catalog:
-            catalog[service].sort(key=lambda d: d["traffic_pct"], reverse=True)
-        return dict(catalog)
-
     def pull_slo_snapshot(self) -> dict[str, dict[str, dict[str, Any]]]:
         snapshot: dict[str, dict[str, dict[str, Any]]] = {}
-        window = self._settings.prometheus_slo_window_minutes
         latency_base = self._settings.prometheus_latency_baseline_ms
         error_base = self._settings.prometheus_error_baseline_pct
+        window = self._settings.prometheus_slo_window_minutes
 
         for service in self._settings.prometheus_service_list():
             latency_q = self._settings.slo_latency_query(service)

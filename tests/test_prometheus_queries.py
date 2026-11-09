@@ -3,6 +3,8 @@ from pydantic import ValidationError
 
 from mlops_triage.config import Settings
 from mlops_triage.sync.prometheus_queries import (
+    deployment_kube_replicas_by_name_promql,
+    deployment_request_traffic_by_label_promql,
     histogram_error_rate_by_label_promql,
     histogram_latency_quantile_promql,
 )
@@ -50,6 +52,26 @@ def test_histogram_error_rate_by_label_custom_filter():
         status_value="UNAVAILABLE",
     )
     assert 'grpc_code="UNAVAILABLE"' in q
+
+
+def test_deployment_request_traffic_promql():
+    q = deployment_request_traffic_by_label_promql(
+        service="rec-engine",
+        window_minutes=15,
+        requests_metric="http_requests_total",
+        group_by_label="destination_version",
+    )
+    assert 'destination_version' in q
+    assert 'service="rec-engine"' in q
+
+
+def test_deployment_kube_replicas_promql():
+    q = deployment_kube_replicas_by_name_promql(
+        namespace="prod",
+        deployment_match_regex="rec-engine.*",
+    )
+    assert "kube_deployment_status_replicas_available" in q
+    assert 'namespace="prod"' in q
 
 
 def test_settings_slo_queries_histogram_default():
