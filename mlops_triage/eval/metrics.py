@@ -42,3 +42,12 @@ def assert_triage_expectations(
 
     if "summary_contains" in expected:
         assert expected["summary_contains"].lower() in triage.incident_summary.lower()
+
+    if "runbook_sources_contains" in expected:
+        needles = expected["runbook_sources_contains"]
+        if isinstance(needles, str):
+            needles = [needles]
+        haystack = " ".join(triage.runbook_sources).lower()
+        assert any(needle.lower() in haystack for needle in needles), (
+            f"expected runbook_sources to mention one of {needles!r}, got {triage.runbook_sources!r}"
+        )

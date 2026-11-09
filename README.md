@@ -191,6 +191,19 @@ Integración contra Ollama (local o manual en Actions → **Run workflow**):
 pytest -m integration
 ```
 
+### Eval golden (regresión LLM)
+
+Casos en [`tests/fixtures/incidents.jsonl`](tests/fixtures/incidents.jsonl): alerta + expectativas parciales (`severity`, `priority`, `runbook_sources_contains`, …).
+
+```bash
+mlops-triage-eval
+mlops-triage-eval --id serving_p99 --json
+python -m mlops_triage.eval
+pytest tests/test_eval_golden.py -m integration
+```
+
+Variable opcional: `GOLDEN_CASES_FILE=/path/cases.jsonl`.
+
 ## Layout
 
 ```
@@ -217,4 +230,4 @@ examples/
 
 ## Siguientes fases (previstas)
 
-- Eval golden (`incidents.jsonl`) con métricas de regresión
+- `/health` profundo + edad de snapshots
