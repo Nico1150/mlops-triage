@@ -1,5 +1,7 @@
 # mlops_triage
 
+[![CI](https://github.com/Nico1150/mlops-triage/actions/workflows/ci.yml/badge.svg)](https://github.com/Nico1150/mlops-triage/actions/workflows/ci.yml)
+
 Local ML incident triage with LLMs (Ollama hoy, API compatible OpenAI; migrable a vLLM) con extracción estructurada, y espacio para agentes y RAG.
 
 ## Requisitos
@@ -161,13 +163,15 @@ Docs interactivas: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ## Tests
 
-Solo unitarios (sin Ollama):
+**CI (GitHub Actions):** en cada push/PR a `main` corre `pytest -m "not integration"` en Python 3.11 y 3.12 (ver [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
+Solo unitarios (sin Ollama), igual que en CI:
 
 ```bash
 pytest -m "not integration"
 ```
 
-Incluye integración contra Ollama:
+Integración contra Ollama (local o manual en Actions → **Run workflow**):
 
 ```bash
 pytest -m integration
@@ -199,5 +203,4 @@ examples/
 
 ## Siguientes fases (previstas)
 
-- CI (unit en PR, integration opcional)
 - Deployments desde métricas CD/Kubernetes (además de `mlops_deployment_traffic_pct`)
