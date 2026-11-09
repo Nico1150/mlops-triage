@@ -1,0 +1,18 @@
+# Local env (never commit — each clone runs: python -m venv venv && pip install -e ".[dev,api]")
+venv/
+.venv/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+
+.env
+.env.local
+
+# Generated RAG index (rebuild via examples/rag_runbook.py or first search)
+data/rag_index.json
+
+.DS_Store

@@ -1,0 +1,30 @@
+{
+  "serving-prod-eu": {
+    "latency_p99": {
+      "current_ms": 4200.0,
+      "baseline_ms": 120.0,
+      "window_minutes": 15,
+      "slo_breached": true
+    },
+    "error_rate_503": {
+      "current_pct": 8.7,
+      "baseline_pct": 0.1,
+      "window_minutes": 15,
+      "slo_breached": true
+    }
+  },
+  "rec-engine": {
+    "latency_p99": {
+      "current_ms": 4200.0,
+      "baseline_ms": 120.0,
+      "window_minutes": 15,
+      "slo_breached": true
+    },
+    "error_rate_503": {
+      "current_pct": 8.7,
+      "baseline_pct": 0.1,
+      "window_minutes": 15,
+      "slo_breached": true
+    }
+  }
+}

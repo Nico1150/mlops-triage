@@ -1,0 +1,27 @@
+{
+  "rec-engine": [
+    {
+      "version": "3.8.1",
+      "channel": "canary",
+      "traffic_pct": 12,
+      "deployed_at_utc": "09:14",
+      "status": "active"
+    },
+    {
+      "version": "3.8.0",
+      "channel": "stable",
+      "traffic_pct": 88,
+      "deployed_at_utc": "yesterday 16:02",
+      "status": "active"
+    }
+  ],
+  "serving-prod-eu": [
+    {
+      "version": "3.8.1",
+      "channel": "canary",
+      "traffic_pct": 12,
+      "deployed_at_utc": "09:14",
+      "status": "active"
+    }
+  ]
+}
