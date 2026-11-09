@@ -76,8 +76,8 @@ mlops-triage-sync --adapter prometheus
 
 **SLO — modo `histogram` (default):** PromQL sobre series típicas de serving:
 
-- Latencia p99: `histogram_quantile` + `rate(http_request_duration_seconds_bucket{service=…}[window])`
-- Errores 503: ratio de `http_requests_total` con `status="503"`
+- Latencia (cuantil configurable, default p99): `histogram_quantile` + `rate(http_request_duration_seconds_bucket{service=…}[window])`
+- Tasa de error por label (default `status="503"`): ratio sobre `http_requests_total` filtrado por `PROMETHEUS_ERROR_STATUS_*`
 
 Ventana: `PROMETHEUS_SLO_WINDOW_MINUTES` (default 15). Nombres de métrica/labels configurables en `.env.example`. Ejemplos en [`data/prometheus_histogram_queries.example.promql`](data/prometheus_histogram_queries.example.promql).
 

@@ -5,7 +5,7 @@ from typing import Literal
 PrometheusSloQueryMode = Literal["gauges", "histogram"]
 
 
-def histogram_latency_p99_promql(
+def histogram_latency_quantile_promql(
     *,
     service: str,
     window_minutes: int,
@@ -13,6 +13,7 @@ def histogram_latency_p99_promql(
     service_label: str = "service",
     quantile: float = 0.99,
 ) -> str:
+    """Latency from a histogram bucket metric; quantile is configurable (p50, p95, p99, …)."""
     window = f"{window_minutes}m"
     selector = f'{duration_metric}{{{service_label}="{service}"}}'
     return (
@@ -21,7 +22,7 @@ def histogram_latency_p99_promql(
     )
 
 
-def histogram_error_rate_503_promql(
+def histogram_error_rate_by_label_promql(
     *,
     service: str,
     window_minutes: int,
@@ -30,6 +31,7 @@ def histogram_error_rate_503_promql(
     status_label: str = "status",
     status_value: str = "503",
 ) -> str:
+    """Error share over request traffic; filter errors via any label pair (HTTP status, gRPC code, …)."""
     window = f"{window_minutes}m"
     errors = (
         f'sum(rate({requests_metric}{{{service_label}="{service}",'

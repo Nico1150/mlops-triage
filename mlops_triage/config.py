@@ -8,8 +8,8 @@ from mlops_triage.sync.prometheus_queries import (
     PrometheusSloQueryMode,
     default_gauge_error_promql,
     default_gauge_latency_promql,
-    histogram_error_rate_503_promql,
-    histogram_latency_p99_promql,
+    histogram_error_rate_by_label_promql,
+    histogram_latency_quantile_promql,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -79,6 +79,9 @@ class Settings(BaseSettings):
             service=service,
             window_minutes=self.prometheus_slo_window_minutes,
             window=f"{self.prometheus_slo_window_minutes}m",
+            quantile=self.prometheus_latency_quantile,
+            error_label=self.prometheus_error_status_label,
+            error_value=self.prometheus_error_status_value,
         )
 
     def slo_latency_query(self, service: str) -> str:
@@ -86,7 +89,7 @@ class Settings(BaseSettings):
         if custom:
             return self._format_custom_promql(custom, service)
         if self.prometheus_slo_query_mode == "histogram":
-            return histogram_latency_p99_promql(
+            return histogram_latency_quantile_promql(
                 service=service,
                 window_minutes=self.prometheus_slo_window_minutes,
                 duration_metric=self.prometheus_histogram_duration_metric,
@@ -100,7 +103,7 @@ class Settings(BaseSettings):
         if custom:
             return self._format_custom_promql(custom, service)
         if self.prometheus_slo_query_mode == "histogram":
-            return histogram_error_rate_503_promql(
+            return histogram_error_rate_by_label_promql(
                 service=service,
                 window_minutes=self.prometheus_slo_window_minutes,
                 requests_metric=self.prometheus_histogram_requests_metric,
