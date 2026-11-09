@@ -45,6 +45,28 @@ Podés copiarlas a un archivo `.env` en la raíz del repo.
 
 Editá esos JSON para simular exports de CD/Prometheus sin tocar código. En producción podés apuntar las variables de entorno a dumps periódicos de tus sistemas reales.
 
+### Sync de snapshots (stub + cron)
+
+Para refrescar los JSON como si vinieran de CD/métricas (adapter **stub** local):
+
+```bash
+pip install -e ".[dev]"   # registra la CLI mlops-triage-sync
+mlops-triage-sync --adapter stub
+# o: python -m mlops_triage.sync
+mlops-triage-sync --dry-run --json
+```
+
+Variables opcionales:
+
+| Variable | Efecto |
+|----------|--------|
+| `SYNC_SCENARIO=incident` | SLO en breach + canary 12% (default, alineado al demo) |
+| `SYNC_SCENARIO=healthy` | SLOs verdes, canary 5% |
+
+Cron / launchd: ver [`scripts/cron.example`](scripts/cron.example) y el wrapper [`scripts/sync_snapshots.sh`](scripts/sync_snapshots.sh).
+
+Próximo adapter previsto: `prometheus` (HTTP) antes de reemplazar el stub en producción.
+
 ### RAG runbooks (integrado)
 
 Markdown en [`data/runbooks/`](data/runbooks/). Índice en `data/rag_index.json` (auto-regenerado si cambiás `.md`).
@@ -140,6 +162,7 @@ mlops_triage/     # paquete Python
   tools/slo_store.py
   rag/                # chunk, embeddings, search
   api/app.py          # FastAPI /health, /triage
+  sync/               # mlops-triage-sync (stub → JSON snapshots)
   pipelines/          # run_incident_pipeline()
   eval/               # aserciones para fixtures de eval
   fixtures/           # alertas de demo compartidas
@@ -151,5 +174,5 @@ examples/
 
 ## Siguientes fases (previstas)
 
-- Conectar snapshots a cron/Prometheus
+- Adapter `prometheus` para `mlops-triage-sync`
 - CI (unit en PR, integration opcional)

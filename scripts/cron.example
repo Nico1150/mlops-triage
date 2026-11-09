@@ -1,0 +1,7 @@
+# Refresh tool snapshots every 5 minutes (Linux cron).
+# Install: crontab -e  and paste the line below (adjust paths).
+#
+# SYNC_SCENARIO=incident  → demo breach metrics (default)
+# SYNC_SCENARIO=healthy   → green SLOs for normal-state demos
+#
+# */5 * * * * SYNC_SCENARIO=incident /Users/you/mlops_triage/scripts/sync_snapshots.sh >> /tmp/mlops-triage-sync.log 2>&1
